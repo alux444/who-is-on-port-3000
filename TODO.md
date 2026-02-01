@@ -4,49 +4,49 @@
 
 - [x] Initialize React + TypeScript project
 - [x] Configure Tailwind CSS
-- [ ] Set up Node.js backend
+- [x] Set up Node.js backend
 - [x] Create project directory structure (`components/`, `hooks/`, `services/`, `types/`, `utils/`)
 - [x] Configure npm scripts (`dev`, `build`, `test`)
 
 ## Services Layer
 
-### Docker Service (`services/docker.ts`)
+### Docker Service (`server/routes/docker.ts`)
 
-- [ ] Connect to Docker API
-- [ ] Fetch all containers (running and stopped)
-- [ ] Parse container data (name, image, status, ports, resource usage)
-- [ ] Implement start container action
-- [ ] Implement stop container action
-- [ ] Implement restart container action
-- [ ] Implement view logs action
+- [x] Connect to Docker API (via CLI)
+- [x] Fetch all containers (running and stopped)
+- [x] Parse container data (name, image, status, ports, resource usage)
+- [x] Implement start container action
+- [x] Implement stop container action
+- [x] Implement restart container action
+- [x] Implement view logs action
 - [ ] Implement open shell action
 - [ ] Add real-time log streaming
 
-### Ports Service (`services/ports.ts`)
+### Ports Service (`server/routes/ports.ts`)
 
-- [ ] Create lsof wrapper for port scanning
-- [ ] Parse port data (process name, PID, protocol, addresses)
+- [x] Create lsof wrapper for port scanning
+- [x] Parse port data (process name, PID, protocol, addresses)
 - [ ] Map ports to owning projects/services
-- [ ] Handle macOS-specific lsof output
+- [x] Handle macOS-specific lsof output
 - [ ] Handle Linux-specific lsof output
 
-### Processes Service (`services/processes.ts`)
+### Processes Service (`server/routes/processes.ts`)
 
-- [ ] List running processes
-- [ ] Group processes by project directory
-- [ ] Identify dev servers, watchers, build processes
-- [ ] Fetch CPU usage per process
-- [ ] Fetch memory usage per process
-- [ ] Implement stop process action
+- [x] List running processes
+- [x] Group processes by project directory
+- [x] Identify dev servers, watchers, build processes
+- [x] Fetch CPU usage per process
+- [x] Fetch memory usage per process
+- [x] Implement stop process action
 - [ ] Implement view output action
 
-### Git Service (`services/git.ts`)
+### Git Service (`server/routes/git.ts`)
 
-- [ ] Scan common project directories for git repos
-- [ ] Get current branch for each repo
-- [ ] Detect uncommitted changes
-- [ ] Detect unpushed commits
-- [ ] Check if repo is behind remote
+- [x] Scan common project directories for git repos
+- [x] Get current branch for each repo
+- [x] Detect uncommitted changes
+- [x] Detect unpushed commits
+- [x] Check if repo is behind remote
 - [ ] Implement open in editor action
 - [ ] Implement open terminal at path action
 
