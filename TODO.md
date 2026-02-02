@@ -52,10 +52,10 @@
 
 ## Custom Hooks
 
-- [ ] Create `useDocker` hook with 2s polling interval
-- [ ] Create `usePorts` hook with 5s polling interval
-- [ ] Create `useProcesses` hook with 3s polling interval
-- [ ] Create `useGitRepos` hook with 30s polling interval
+- [x] Create `useDocker` hook with 2s polling interval
+- [x] Create `usePorts` hook with 5s polling interval
+- [x] Create `useProcesses` hook with 3s polling interval
+- [x] Create `useGitRepos` hook with 30s polling interval
 - [ ] Add configurable polling intervals
 - [ ] Implement Docker events API as alternative to polling
 
@@ -69,38 +69,38 @@
 
 ### Docker Panel
 
-- [ ] Create container list component
-- [ ] Display container name, image, status
+- [x] Create container list component
+- [x] Display container name, image, status
 - [ ] Display port mappings
 - [ ] Display resource usage (CPU, memory)
-- [ ] Add start/stop/restart buttons
+- [x] Add start/stop/restart buttons
 - [ ] Add view logs button
 - [ ] Add open shell button
 - [ ] Create log viewer modal with streaming
 
 ### Ports Panel
 
-- [ ] Create ports list component
-- [ ] Display process name, PID, protocol
-- [ ] Display local/remote addresses
+- [x] Create ports list component
+- [x] Display process name, PID, protocol
+- [x] Display local/remote addresses
 - [ ] Show owning project/service
-- [ ] Make HTTP ports clickable to open in browser
+- [x] Make HTTP ports clickable to open in browser
 
 ### Processes Panel
 
-- [ ] Create process list grouped by project
+- [x] Create process list grouped by project
 - [ ] Display process type (dev server, watcher, build)
-- [ ] Display CPU/memory usage
-- [ ] Add stop process button
+- [x] Display CPU/memory usage
+- [x] Add stop process button
 - [ ] Add view output button
 
 ### Git Panel
 
-- [ ] Create git repo list component
-- [ ] Display branch name
-- [ ] Display uncommitted changes count
-- [ ] Display unpushed commits count
-- [ ] Add visual indicator for repos needing attention
+- [x] Create git repo list component
+- [x] Display branch name
+- [x] Display uncommitted changes count
+- [x] Display unpushed commits count
+- [x] Add visual indicator for repos needing attention
 - [ ] Add open in editor button
 - [ ] Add open terminal button
 
@@ -122,10 +122,10 @@
 
 ## TypeScript Types
 
-- [ ] Define `Container` interface
-- [ ] Define `Port` interface
-- [ ] Define `Process` interface
-- [ ] Define `GitRepo` interface
+- [x] Define `Container` interface
+- [x] Define `Port` interface
+- [x] Define `Process` interface
+- [x] Define `GitRepo` interface
 - [ ] Define action response types
 
 ## Security

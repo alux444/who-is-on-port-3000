@@ -13,6 +13,54 @@ interface Port {
   port: number
   pid: number
   process: string
+  command: string | null   // Full command line
+  cwd: string | null       // Working directory (helps identify project)
+  user: string | null      // User running the process
+  startTime: string | null // When the process started
+}
+
+// Get extra process info (command, cwd, start time) for a PID
+async function getProcessInfo(pid: number): Promise<{
+  command: string | null
+  cwd: string | null
+  startTime: string | null
+}> {
+  let command: string | null = null
+  let cwd: string | null = null
+  let startTime: string | null = null
+
+  try {
+    // Get full command line and start time using ps
+    // lstart = full start time
+    // args = full command with arguments
+    const { stdout } = await execAsync(
+      `ps -p ${pid} -o lstart=,args= 2>/dev/null`
+    )
+    const line = stdout.trim()
+    if (line) {
+      // lstart format: "Mon Jan 15 10:30:00 2024"
+      // First 24 chars are the date, rest is the command
+      startTime = line.substring(0, 24).trim()
+      command = line.substring(24).trim()
+    }
+  } catch {
+    // Process may have exited
+  }
+
+  try {
+    // Get working directory using lsof
+    const { stdout } = await execAsync(
+      `lsof -p ${pid} -Fn 2>/dev/null | grep -A1 '^fcwd$' | tail -1`
+    )
+    const cwdLine = stdout.trim()
+    if (cwdLine.startsWith('n')) {
+      cwd = cwdLine.substring(1) // Remove 'n' prefix
+    }
+  } catch {
+    // Ignore errors
+  }
+
+  return { command, cwd, startTime }
 }
 
 // GET /api/ports
@@ -43,6 +91,7 @@ portsRouter.get('/', async (_req, res) => {
 
       const process = parts[0]  // Process name (e.g., "node", "postgres")
       const pid = parseInt(parts[1], 10)  // Process ID
+      const user = parts[2]  // User running the process
       const nameField = parts[8]  // The address:port part (e.g., "*:3000" or "127.0.0.1:5432")
 
       // Extract address and port using regex
@@ -58,12 +107,19 @@ portsRouter.get('/', async (_req, res) => {
       if (seen.has(key)) continue
       seen.add(key)
 
+      // Get additional process info
+      const { command, cwd, startTime } = await getProcessInfo(pid)
+
       ports.push({
         protocol: 'TCP',
         localAddress,
         port,
         pid,
         process,
+        command,
+        cwd,
+        user,
+        startTime,
       })
     }
 
