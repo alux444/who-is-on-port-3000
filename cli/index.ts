@@ -69,6 +69,13 @@ interface State {
   processes: Process[]
   git: GitRepo[]
   actionMenu: { type: 'docker'; id: string; name: string } | null
+  hidden: {
+    docker: Set<string>
+    ports: Set<number>
+    processes: Set<number>
+    git: Set<string>
+  }
+  showHidden: boolean
 }
 
 const state: State = {
@@ -79,6 +86,13 @@ const state: State = {
   processes: [],
   git: [],
   actionMenu: null,
+  hidden: {
+    docker: new Set(),
+    ports: new Set(),
+    processes: new Set(),
+    git: new Set(),
+  },
+  showHidden: false,
 }
 
 // Fetch data from API
@@ -99,9 +113,23 @@ async function fetchData() {
   }
 }
 
-function getCurrentListLength(): number {
+function getVisibleItems<T>(panel: Panel, items: T[], getId: (item: T) => string | number): T[] {
+  if (state.showHidden) return items
+  const hiddenSet = state.hidden[panel]
+  return items.filter(item => !hiddenSet.has(getId(item) as never))
+}
+
+function getCurrentList(): Container[] | Port[] | Process[] | GitRepo[] {
   const panel = PANELS[state.panel]
-  return state[panel].length
+  if (panel === 'docker') return getVisibleItems('docker', state.docker, c => c.id)
+  if (panel === 'ports') return getVisibleItems('ports', state.ports, p => p.port)
+  if (panel === 'processes') return getVisibleItems('processes', state.processes, p => p.pid)
+  if (panel === 'git') return getVisibleItems('git', state.git, g => g.path)
+  return []
+}
+
+function getCurrentListLength(): number {
+  return getCurrentList().length
 }
 
 function formatUptime(startTime: string): string {
@@ -124,31 +152,41 @@ function render() {
   let output = CLEAR
 
   // Header
-  output += `${BOLD}localhost-ui${RESET} ${GRAY}← → panels  ↑ ↓ select  enter action  q quit${RESET}\n\n`
+  const hideHelp = state.showHidden ? 'u unhide' : 'h hide'
+  output += `${BOLD}localhost-ui${RESET} ${GRAY}← → panels  ↑ ↓ select  enter action  ${hideHelp}  H toggle hidden  q quit${RESET}\n\n`
 
   // Panel tabs
+  const visibleDocker = getVisibleItems('docker', state.docker, c => c.id)
+  const visiblePorts = getVisibleItems('ports', state.ports, p => p.port)
+  const visibleProcesses = getVisibleItems('processes', state.processes, p => p.pid)
+  const visibleGit = getVisibleItems('git', state.git, g => g.path)
+
   const tabs = [
-    { name: 'Docker', color: BLUE, count: state.docker.length },
-    { name: 'Ports', color: GREEN, count: state.ports.length },
-    { name: 'Processes', color: YELLOW, count: state.processes.length },
-    { name: 'Git', color: MAGENTA, count: state.git.length },
+    { name: 'Docker', color: BLUE, count: visibleDocker.length, hidden: state.hidden.docker.size },
+    { name: 'Ports', color: GREEN, count: visiblePorts.length, hidden: state.hidden.ports.size },
+    { name: 'Processes', color: YELLOW, count: visibleProcesses.length, hidden: state.hidden.processes.size },
+    { name: 'Git', color: MAGENTA, count: visibleGit.length, hidden: state.hidden.git.size },
   ]
 
   output += tabs.map((t, i) => {
     const selected = i === state.panel
     const style = selected ? `${t.color}${BOLD}` : GRAY
-    return `${style}${t.name}${RESET}${GRAY}(${t.count})${RESET}`
+    const hiddenIndicator = t.hidden > 0 ? `${GRAY}+${t.hidden}${RESET}` : ''
+    return `${style}${t.name}${RESET}${GRAY}(${t.count}${hiddenIndicator})${RESET}`
   }).join('  ') + '\n\n'
 
   // Current panel content
   const panel = PANELS[state.panel]
+  const currentList = getCurrentList()
 
   const renderRow = (i: number, selected: boolean) => {
     const cursor = selected ? `${CYAN}▶${RESET} ` : '  '
     const style = selected ? BOLD : ''
 
     if (panel === 'docker') {
-      const item = state.docker[i]
+      const item = currentList[i] as Container
+      const isHidden = state.hidden.docker.has(item.id)
+      const hiddenMark = isHidden ? `${GRAY}[hidden]${RESET} ` : ''
       const icon = item.state === 'running' ? `${GREEN}●${RESET}` : `${GRAY}○${RESET}`
       const ports = Array.isArray(item.ports) && item.ports.length > 0
         ? item.ports.map(p => p.host ? `${CYAN}:${p.host}${RESET}` : `:${p.container}`).join(' ')
@@ -165,27 +203,33 @@ function render() {
         details = ` ${GRAY}${item.status}${RESET}`
       }
 
-      return `${cursor}${style}${icon} ${item.name} ${GRAY}${image}${RESET}${details}\n`
+      return `${cursor}${hiddenMark}${style}${icon} ${item.name} ${GRAY}${image}${RESET}${details}\n`
     } else if (panel === 'ports') {
-      const item = state.ports[i]
+      const item = currentList[i] as Port
+      const isHidden = state.hidden.ports.has(item.port)
+      const hiddenMark = isHidden ? `${GRAY}[hidden]${RESET} ` : ''
       const port = `${GREEN}:${item.port}${RESET}`
       const proc = item.process
       const dir = item.cwd ? item.cwd.split('/').pop() : ''
       const time = item.startTime ? formatUptime(item.startTime) : ''
-      return `${cursor}${style}${port} ${proc}${RESET}${dir ? ` ${GRAY}· ${dir}${RESET}` : ''}${time ? ` ${GRAY}${time}${RESET}` : ''}\n`
+      return `${cursor}${hiddenMark}${style}${port} ${proc}${RESET}${dir ? ` ${GRAY}· ${dir}${RESET}` : ''}${time ? ` ${GRAY}${time}${RESET}` : ''}\n`
     } else if (panel === 'processes') {
-      const item = state.processes[i]
+      const item = currentList[i] as Process
+      const isHidden = state.hidden.processes.has(item.pid)
+      const hiddenMark = isHidden ? `${GRAY}[hidden]${RESET} ` : ''
       const cpu = `${item.cpu.toFixed(1)}%`
-      return `${cursor}${style}${item.name}${RESET} ${GRAY}PID ${item.pid} · ${cpu}${RESET}\n`
+      return `${cursor}${hiddenMark}${style}${item.name}${RESET} ${GRAY}PID ${item.pid} · ${cpu}${RESET}\n`
     } else {
-      const item = state.git[i]
+      const item = currentList[i] as GitRepo
+      const isHidden = state.hidden.git.has(item.path)
+      const hiddenMark = isHidden ? `${GRAY}[hidden]${RESET} ` : ''
       const branch = `${MAGENTA}${item.branch}${RESET}`
       let gitStatus = ''
       if (item.dirty) gitStatus += `${YELLOW}${item.uncommittedCount} changes${RESET} `
       if (item.unpushedCount > 0) gitStatus += `${BLUE}${item.unpushedCount} unpushed${RESET} `
       if (item.behindCount > 0) gitStatus += `${RED}${item.behindCount} behind${RESET} `
       if (!gitStatus) gitStatus = `${GREEN}clean${RESET}`
-      return `${cursor}${style}${item.name}${RESET} ${branch} ${gitStatus}\n`
+      return `${cursor}${hiddenMark}${style}${item.name}${RESET} ${branch} ${gitStatus}\n`
     }
   }
 
@@ -358,6 +402,37 @@ async function main() {
       state.index = (state.index + 1) % len
     } else if (key.name === 'return') {
       await handleAction()
+    } else if (str === 'h') {
+      // Hide current item
+      const panel = PANELS[state.panel]
+      const list = getCurrentList()
+      const item = list[state.index]
+      if (item) {
+        if (panel === 'docker') state.hidden.docker.add((item as Container).id)
+        else if (panel === 'ports') state.hidden.ports.add((item as Port).port)
+        else if (panel === 'processes') state.hidden.processes.add((item as Process).pid)
+        else if (panel === 'git') state.hidden.git.add((item as GitRepo).path)
+        // Adjust index if needed
+        const newLen = getCurrentListLength()
+        if (state.index >= newLen) state.index = Math.max(0, newLen - 1)
+      }
+    } else if (str === 'H') {
+      // Toggle show hidden
+      state.showHidden = !state.showHidden
+      state.index = 0
+    } else if (str === 'u') {
+      // Unhide current item (only works when showHidden is true)
+      if (state.showHidden) {
+        const panel = PANELS[state.panel]
+        const list = getCurrentList()
+        const item = list[state.index]
+        if (item) {
+          if (panel === 'docker') state.hidden.docker.delete((item as Container).id)
+          else if (panel === 'ports') state.hidden.ports.delete((item as Port).port)
+          else if (panel === 'processes') state.hidden.processes.delete((item as Process).pid)
+          else if (panel === 'git') state.hidden.git.delete((item as GitRepo).path)
+        }
+      }
     }
 
     render()
