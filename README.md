@@ -1,89 +1,88 @@
 # localhost-ui
 
-A single-page dashboard showing everything running on your local machine.
+A dashboard showing everything running on your local machine.
 
-## Overview
+## Quick Start
 
-localhost-ui replaces the constant need to run `docker ps`, `lsof -i`, `ps aux`, and `git status` across projects. One glance shows what's running, what's listening, and what needs attention.
+```bash
+# Install dependencies
+npm install
 
-## Core Features
+# Run web UI (frontend + backend)
+npm run dev
 
-### Docker Containers
+# Open http://localhost:5173
+```
 
-- List all containers (running and stopped)
-- Show container name, image, status, ports, resource usage
-- Actions: start, stop, restart, view logs, open shell
-- Real-time log streaming
+## CLI
 
-### Listening Ports
+```bash
+# Run the terminal UI (requires server running)
+npm run dev:server  # in one terminal
+npm run cli         # in another terminal
+```
 
-- Show all ports with active listeners
-- Display process name, PID, protocol, local/remote address
-- Identify which project/service owns each port
-- Click port to open in browser (for HTTP services)
+**CLI Controls:**
+- `←` `→` - Switch panels
+- `↑` `↓` - Select item
+- `Enter` - Action (start/stop, open in browser, kill, open terminal)
+- `q` - Quit
 
-### Running Processes by Project
+## What it Shows
 
-- Group processes by project directory
-- Show dev servers, watchers, build processes
-- Display CPU/memory usage per process
-- Actions: stop process, view output
+| Panel | Info | Actions |
+|-------|------|---------|
+| **Docker** | Containers, ports, CPU, memory | Start, Stop |
+| **Ports** | Listening ports, process, project | Open in browser |
+| **Processes** | Dev processes, CPU usage | Kill |
+| **Git** | Repos, branch, dirty/unpushed status | Open terminal |
 
-### Git Repository Status
+## Configuration
 
-- Scan common project directories for git repos
-- Show branch, uncommitted changes, unpushed commits
-- Indicate repos that need attention (dirty, behind remote)
-- Quick actions: open in editor, open terminal at path
+Edit `server/config.ts` to customize:
 
-## Tech Stack
+```ts
+// Directories to scan for git repos
+export const GIT_SCAN_DIRS = [
+  join(homedir(), 'Developer'),
+  join(homedir(), 'Projects'),
+]
 
-- **Frontend**: React + TypeScript
-- **Styling**: Tailwind CSS
-- **Backend**: Node.js with native bindings for system calls
-- **Data**: Real-time polling with configurable intervals
-- **Platform**: macOS primary, Linux secondary
+// Process patterns to show in Dev Processes
+export const DEV_PROCESS_PATTERNS = [
+  'node', 'npm', 'vite', 'python', ...
+]
+```
+
+## Commands
+
+```bash
+npm run dev          # Start frontend + backend
+npm run dev:client   # Frontend only (port 5173)
+npm run dev:server   # Backend only (port 3001)
+npm run cli          # Terminal UI
+npm run build        # Production build
+npm test             # Run tests
+```
 
 ## Project Structure
 
 ```
-src/
-  components/     # React components
-  hooks/          # Custom hooks for data fetching
-  services/       # System interaction layer
-    docker.ts     # Docker API integration
-    ports.ts      # Port scanning (lsof wrapper)
-    processes.ts  # Process listing and management
-    git.ts        # Git status checks
-  types/          # TypeScript interfaces
-  utils/          # Helpers
+src/                 # React frontend
+  components/        # UI panels
+  hooks/             # Data fetching with polling
+  types/             # TypeScript interfaces
+
+server/              # Express backend
+  routes/            # API endpoints
+  config.ts          # Configuration
+
+cli/                 # Terminal UI
+  index.ts           # TUI with keyboard nav
 ```
 
-## Key Commands
+## Tech Stack
 
-```bash
-npm run dev      # Start development server
-npm run build    # Production build
-npm test         # Run tests
-```
-
-## Design Principles
-
-1. **Instant overview** - Everything visible without scrolling on a typical screen
-2. **Zero config** - Works out of the box, discovers projects automatically
-3. **Non-destructive** - Dangerous actions (stop, kill) require confirmation
-4. **Low overhead** - Minimal resource usage, smart polling intervals
-5. **Keyboard-first** - Navigate and act without mouse
-
-## Data Refresh Strategy
-
-- Docker: Poll every 2s (or use Docker events API)
-- Ports: Poll every 5s
-- Processes: Poll every 3s
-- Git: Poll every 30s (expensive operation)
-
-## Security Considerations
-
-- Runs locally only, no network exposure
-- No elevated privileges required for basic features
-- Optional sudo prompt for operations requiring root
+- React + TypeScript + Tailwind
+- Express backend
+- System calls via `docker`, `lsof`, `ps`, `git`

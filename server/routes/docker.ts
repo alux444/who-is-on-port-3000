@@ -7,44 +7,95 @@ const execAsync = promisify(exec)
 
 export const dockerRouter = Router()
 
+interface PortMapping {
+  host: number | null
+  container: number
+  protocol: string
+}
+
 interface Container {
   id: string
   name: string
   image: string
-  status: string
-  state: string
-  ports: string
+  status: string      // "Up 2 hours", "Exited (0) 3 days ago"
+  state: string       // "running", "exited", "paused"
+  ports: PortMapping[]
   created: string
+  cpu: string | null  // "0.5%" (only for running containers)
+  memory: string | null // "50MiB / 512MiB" (only for running containers)
+}
+
+// Parse port string like "0.0.0.0:8080->80/tcp, 443/tcp" into structured data
+function parsePorts(portStr: string): PortMapping[] {
+  if (!portStr) return []
+
+  return portStr.split(', ').map(part => {
+    // Format: "0.0.0.0:8080->80/tcp" or "80/tcp"
+    const match = part.match(/(?:[\d.]+:(\d+)->)?(\d+)\/(\w+)/)
+    if (!match) return null
+    return {
+      host: match[1] ? parseInt(match[1], 10) : null,
+      container: parseInt(match[2], 10),
+      protocol: match[3],
+    }
+  }).filter((p): p is PortMapping => p !== null)
 }
 
 // GET /api/docker/containers
 // Lists all Docker containers (running + stopped)
 dockerRouter.get('/containers', async (_req, res) => {
   try {
-    // Run `docker ps -a` with a custom format
-    // The --format flag uses Go templates to output exactly the fields we want
-    // We use | as delimiter so we can easily split the output
-    // Fields: ID | Name | Image | Status (e.g. "Up 2 hours") | State (running/exited) | Ports | CreatedAt
+    // Get basic container info
     const { stdout } = await execAsync(
       'docker ps -a --format "{{.ID}}|{{.Names}}|{{.Image}}|{{.Status}}|{{.State}}|{{.Ports}}|{{.CreatedAt}}"'
     )
 
-    // Parse each line of output into a Container object
-    // Example line: "abc123|my-container|nginx:latest|Up 2 hours|running|0.0.0.0:80->80/tcp|2024-01-15"
     const containers: Container[] = stdout
       .trim()
       .split('\n')
-      .filter(line => line) // Remove empty lines
+      .filter(line => line)
       .map(line => {
         const [id, name, image, status, state, ports, created] = line.split('|')
-        return { id, name, image, status, state, ports, created }
+        return {
+          id,
+          name,
+          image,
+          status,
+          state,
+          ports: parsePorts(ports),
+          created,
+          cpu: null,
+          memory: null,
+        }
       })
+
+    // Get stats for running containers
+    const runningIds = containers.filter(c => c.state === 'running').map(c => c.id)
+    if (runningIds.length > 0) {
+      try {
+        const { stdout: statsOut } = await execAsync(
+          `docker stats --no-stream --format "{{.ID}}|{{.CPUPerc}}|{{.MemUsage}}" ${runningIds.join(' ')}`
+        )
+        const statsMap = new Map<string, { cpu: string; memory: string }>()
+        statsOut.trim().split('\n').forEach(line => {
+          const [id, cpu, memory] = line.split('|')
+          statsMap.set(id, { cpu, memory })
+        })
+
+        containers.forEach(c => {
+          const stats = statsMap.get(c.id)
+          if (stats) {
+            c.cpu = stats.cpu
+            c.memory = stats.memory
+          }
+        })
+      } catch {
+        // Stats failed, continue without them
+      }
+    }
 
     res.json(containers)
   } catch (error) {
-    // ENOENT = docker command not found
-    // "Cannot connect" = Docker daemon not running
-    // In both cases, just return empty array (Docker isn't available)
     if ((error as NodeJS.ErrnoException).code === 'ENOENT' ||
         (error as Error).message?.includes('Cannot connect')) {
       res.json([])
@@ -55,10 +106,8 @@ dockerRouter.get('/containers', async (_req, res) => {
 })
 
 // POST /api/docker/containers/:id/start
-// Starts a stopped container
 dockerRouter.post('/containers/:id/start', async (req, res) => {
   try {
-    // req.params.id is the container ID or name from the URL
     await execAsync(`docker start ${req.params.id}`)
     res.json({ success: true })
   } catch {
@@ -67,7 +116,6 @@ dockerRouter.post('/containers/:id/start', async (req, res) => {
 })
 
 // POST /api/docker/containers/:id/stop
-// Stops a running container (sends SIGTERM, then SIGKILL after timeout)
 dockerRouter.post('/containers/:id/stop', async (req, res) => {
   try {
     await execAsync(`docker stop ${req.params.id}`)
@@ -78,7 +126,6 @@ dockerRouter.post('/containers/:id/stop', async (req, res) => {
 })
 
 // POST /api/docker/containers/:id/restart
-// Restarts a container (stop + start)
 dockerRouter.post('/containers/:id/restart', async (req, res) => {
   try {
     await execAsync(`docker restart ${req.params.id}`)
@@ -89,10 +136,8 @@ dockerRouter.post('/containers/:id/restart', async (req, res) => {
 })
 
 // GET /api/docker/containers/:id/logs
-// Gets the last 100 lines of logs from a container
 dockerRouter.get('/containers/:id/logs', async (req, res) => {
   try {
-    // --tail 100 limits output to last 100 lines (otherwise could be huge)
     const { stdout } = await execAsync(`docker logs --tail 100 ${req.params.id}`)
     res.json({ logs: stdout })
   } catch {

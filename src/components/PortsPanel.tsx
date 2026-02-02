@@ -18,7 +18,9 @@ function getHiddenProcesses(): Set<string> {
   try {
     const stored = localStorage.getItem(STORAGE_KEY)
     if (stored) return new Set(JSON.parse(stored))
-  } catch {}
+  } catch {
+    // Invalid JSON, use defaults
+  }
   return new Set(DEFAULT_HIDDEN)
 }
 

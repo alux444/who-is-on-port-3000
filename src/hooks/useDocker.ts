@@ -26,6 +26,16 @@ export function useDocker() {
     refetch()
   }
 
+  const getLogs = async (id: string): Promise<string> => {
+    try {
+      const res = await fetch(`${API_BASE}/docker/containers/${id}/logs`)
+      const data = await res.json()
+      return data.logs || 'No logs available'
+    } catch {
+      return 'Failed to fetch logs'
+    }
+  }
+
   return {
     containers: data,
     loading,
@@ -33,5 +43,6 @@ export function useDocker() {
     startContainer,
     stopContainer,
     restartContainer,
+    getLogs,
   }
 }

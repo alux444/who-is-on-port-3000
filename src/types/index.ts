@@ -1,12 +1,20 @@
 // Docker container from /api/docker/containers
+export interface PortMapping {
+  host: number | null
+  container: number
+  protocol: string
+}
+
 export interface Container {
   id: string
   name: string
   image: string
-  status: string  // e.g., "Up 2 hours", "Exited (0) 3 days ago"
-  state: string   // "running" | "exited" | "paused" etc.
-  ports: string   // e.g., "0.0.0.0:80->80/tcp"
+  status: string         // e.g., "Up 2 hours", "Exited (0) 3 days ago"
+  state: string          // "running" | "exited" | "paused" etc.
+  ports: PortMapping[]
   created: string
+  cpu: string | null     // e.g., "0.5%"
+  memory: string | null  // e.g., "50MiB / 512MiB"
 }
 
 // Listening port from /api/ports
